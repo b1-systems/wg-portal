@@ -93,7 +93,7 @@ func (s *Server) CreateUser(user User) error {
 			if err != nil {
 				return err
 			}
-			user.IPs[i] = freeIP
+			user.IPs = append(user.IPs, freeIP)
 		}
 		user.IPsStr = common.ListToString(user.IPs)
 	}

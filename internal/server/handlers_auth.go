@@ -85,7 +85,7 @@ func (s *Server) PostLogin(c *gin.Context) {
 		sessionData = SessionData{
 			LoggedIn:      true,
 			IsAdmin:       s.ldapUsers.IsInGroup(username, s.config.AdminLdapGroup),
-			UID:           userData.GetUID(),
+			UID:           username,
 			UserName:      username,
 			Email:         userData.Mail,
 			Firstname:     userData.Firstname,

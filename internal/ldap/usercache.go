@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,10 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var Fields = []string{"givenName", "sn", "mail", "department", "memberOf", "sAMAccountName", "telephoneNumber",
-	"mobile", "displayName", "cn", "title", "company", "manager", "streetAddress", "employeeID", "memberOf", "l",
-	"st", "postalCode", "co", "facsimileTelephoneNumber", "pager", "thumbnailPhoto", "otherMobile",
-	"extensionAttribute2", "distinguishedName", "userAccountControl"}
+var Fields = []string{"cn", "sn", "mail", "memberOf", "uid"}
 
 // --------------------------------------------------------------------------------------------------------------------
 // Cache Data Store
@@ -50,9 +46,9 @@ type UserCacheHolderEntry struct {
 }
 
 func (e *UserCacheHolderEntry) CalcFieldsFromAttributes() {
-	e.Username = strings.ToLower(e.Attributes["sAMAccountName"])
+	e.Username = strings.ToLower(e.Attributes["uid"])
 	e.Mail = e.Attributes["mail"]
-	e.Firstname = e.Attributes["givenName"]
+	e.Firstname = e.Attributes["cn"]
 	e.Lastname = e.Attributes["sn"]
 	e.Groups = make([]string, len(e.RawAttributes["memberOf"]))
 	for i, group := range e.RawAttributes["memberOf"] {
@@ -61,7 +57,7 @@ func (e *UserCacheHolderEntry) CalcFieldsFromAttributes() {
 }
 
 func (e *UserCacheHolderEntry) GetUID() string {
-	return fmt.Sprintf("u%x", md5.Sum([]byte(e.Attributes["distinguishedName"])))
+	return fmt.Sprintf("u%x", md5.Sum([]byte(e.Username)))
 }
 
 type SynchronizedUserCacheHolder struct {
@@ -173,7 +169,7 @@ func (h *SynchronizedUserCacheHolder) UserExists(username string) bool {
 func (h *SynchronizedUserCacheHolder) GetUserDN(username string) string {
 	userDN := ""
 	for dn, user := range h.users {
-		accName := strings.ToLower(user.Attributes["sAMAccountName"])
+		accName := strings.ToLower(user.Attributes["uid"])
 		if accName == username {
 			userDN = dn
 			break
@@ -279,20 +275,14 @@ func (u *UserCache) Update(filter, withDisabledUsers bool) error {
 
 	for _, entry := range sr.Entries {
 		if filter {
-			usernameAttr := strings.ToLower(entry.GetAttributeValue("sAMAccountName"))
-			firstNameAttr := entry.GetAttributeValue("givenName")
+			usernameAttr := strings.ToLower(entry.GetAttributeValue("uid"))
+			firstNameAttr := entry.GetAttributeValue("cn")
 			lastNameAttr := entry.GetAttributeValue("sn")
 			mailAttr := entry.GetAttributeValue("mail")
-			userAccountControl := entry.GetAttributeValue("userAccountControl")
-			employeeID := entry.GetAttributeValue("employeeID")
-			dn := entry.GetAttributeValue("distinguishedName")
+			dn := entry.DN
 
-			if usernameAttr == "" || firstNameAttr == "" || lastNameAttr == "" || mailAttr == "" || employeeID == "" {
+			if usernameAttr == "" || firstNameAttr == "" || lastNameAttr == "" || mailAttr == "" {
 				continue // prefilter...
-			}
-
-			if !withDisabledUsers && userAccountControl != "" && IsLdapUserDisabled(userAccountControl) {
-				continue
 			}
 
 			if entry.DN != dn {
@@ -323,16 +313,4 @@ func (u *UserCache) Update(filter, withDisabledUsers bool) error {
 	logrus.Debug("Ldap cache updated...")
 
 	return nil
-}
-
-func IsLdapUserDisabled(userAccountControl string) bool {
-	uacInt, err := strconv.Atoi(userAccountControl)
-	if err != nil {
-		return true
-	}
-	if int32(uacInt)&0x2 != 0 {
-		return true // bit 2 set means account is disabled
-	}
-
-	return false
 }

@@ -150,9 +150,7 @@
                                                     <ul>
                                                         <li>Firstname: {{$p.LdapUser.Firstname}}</li>
                                                         <li>Lastname: {{$p.LdapUser.Lastname}}</li>
-                                                        <li>Phone: {{index $p.LdapUser.RawLdapData.Attributes "telephoneNumber"}}</li>
                                                         <li>Mail: {{$p.LdapUser.Mail}}</li>
-                                                        <li>Department: {{index $p.LdapUser.RawLdapData.Attributes "department"}}</li>
                                                     </ul>
                                                 {{end}}
                                                 <h4>Connection / Traffic</h4>
